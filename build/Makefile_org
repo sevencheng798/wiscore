@@ -1,0 +1,30 @@
+#By Seven 2017-0304
+#make files.
+ifeq ($(BUILD_TARGET),host)
+SUBDIRS=host
+else
+SUBDIRS=target
+endif
+
+.PHONY: compile clean install uninstall
+
+compile:
+	@list='$(SUBDIRS)'; for subdir in $$list; do \
+                (cd $$subdir && make); \
+    done;
+
+clean:
+	@list='$(SUBDIRS)'; for subdir in $$list; do \
+                (cd $$subdir && make clean); \
+        done;
+
+install:
+	@list='$(SUBDIRS)'; for subdir in $$list; do \
+                (cd $$subdir && make install); \
+        done;
+
+uninstall:
+	@list='$(SUBDIRS)'; for subdir in $$list; do \
+                (cd $$subdir && make uninstall); \
+        done;
+
