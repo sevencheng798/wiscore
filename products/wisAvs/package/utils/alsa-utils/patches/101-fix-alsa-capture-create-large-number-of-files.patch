@@ -1,0 +1,20 @@
+--- a/aplay/aplay.c
++++ b/aplay/aplay.c
+@@ -2996,10 +2996,13 @@ static void capture(char *orig_name)
+ 		fdcount = 0;
+ 		while (rest > 0 && recycle_capture_file == 0 && !in_aborting) {
+ 			size_t c = (rest <= (off64_t)chunk_bytes) ?
+-				(size_t)rest : chunk_bytes;
+-			size_t f = c * 8 / bits_per_frame;
+-			if (pcm_read(audiobuf, f) != f)
+-				break;
++				(size_t)rest : chunk_bytes;	//chunk_bytes = 1332? f=333
++			size_t f = c * 8 / bits_per_frame;	//bits_per_frame = 32
++			if (pcm_read(audiobuf, f) != f){
++			    printf("-->%s %d: count:%lld, rest:%lld, f:%d, c:%d 333\n", __func__, __LINE__, count, rest, f, c);
++			    count = 0;
++			    break;
++			}
+ 			if (write(fd, audiobuf, c) != c) {
+ 				perror(name);
+ 				prg_exit(EXIT_FAILURE);

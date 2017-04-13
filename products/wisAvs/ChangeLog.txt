@@ -1,0 +1,14 @@
+
+###################################################################
+VER: r-221  2017-04-07
+###################################################################
+release - alpha
+
+1、support ASR 'key word' auto to wakeup Alexa 
+2、support Alexa function: normal dialog, alert(alarm/timer), amazon music, iHeartradio FM, audiobl, iTunel, Skills
+3、support Alexa indicator status. 
+   - wakeup alexa -> prompt voice and change light status
+   - listen stop -> prompt voice and change light status
+   - mic mute -> prompt voice and change light status
+4、support break previous Alexa and entry listening status at once
+
