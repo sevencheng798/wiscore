@@ -1,0 +1,1734 @@
+--- a/sound/soc/mtk/Makefile
++++ b/sound/soc/mtk/Makefile
+@@ -20,7 +20,25 @@ KBUILD_CFLAGS += -DCONFIG_I2S_MCLK_12MHZ
+ KBUILD_CFLAGS += -DCONFIG_GDMA_EVERYBODY
+ KBUILD_CFLAGS += -DSURFBOARDINT_DMA=15
+ KBUILD_CFLAGS += -DRALINK_INTCTL_DMA=128
++#KBUILD_CFLAGS += -DCONFIG_SND_SOC_WM8960
++endif
++
++ifeq ($(CONFIG_SND_SOC_WM8960), y)
++#For wm8960 to open
+ KBUILD_CFLAGS += -DCONFIG_SND_SOC_WM8960
++###KBUILD_CFLAGS += -DCONFIG_SND_SOC_ZL380TW
++else
++ifeq ($(CONFIG_SND_SOC_WM8960), m)
++KBUILD_CFLAGS += -DCONFIG_SND_SOC_WM8960
++endif
++endif
++
++ifeq ($(CONFIG_SND_SOC_ZL380TW), y)
++KBUILD_CFLAGS += -DCONFIG_SND_SOC_ZL380TW
++else
++ifeq ($(CONFIG_SND_SOC_ZL380TW), m)
++KBUILD_CFLAGS += -DCONFIG_SND_SOC_ZL380TW
++endif
+ endif
+ 
+ # MTK APSoC Platform Support
+--- a/sound/soc/mtk/i2s_ctrl.c
++++ b/sound/soc/mtk/i2s_ctrl.c
+@@ -1,3 +1,7 @@
++/*
++*	Modifier: By seven
++*/
++
+ #include <linux/init.h>
+ #include <linux/version.h>
+ #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
+@@ -103,8 +107,8 @@ int i2s_mmap_remap(struct vm_area_struct
+ /* global varable definitions */
+ i2s_config_type i2s_config;
+ i2s_status_type i2s_status; 
+-i2s_config_type* pi2s_config = &i2s_config;;
+-i2s_status_type* pi2s_status = &i2s_status;;
++i2s_config_type* pi2s_config = &i2s_config;
++i2s_status_type* pi2s_status = &i2s_status;
+ 
+ static inline long
+ ugly_hack_sleep_on_timeout(wait_queue_head_t *q, long timeout)
+@@ -156,7 +160,7 @@ unsigned long i2s_codec_18p432Mhz[11]  =
+ unsigned long i2s_codec_12p288Mhz[11]  = {0x04,  0x00, 0x10, 0x14,  0x38, 0x38, 0x18,  0x20, 0x00,  0x00, 0x1C};
+ unsigned long i2s_codec_12Mhz[11]      = {0x04,  0x32, 0x10, 0x14,  0x37, 0x38, 0x18,  0x22, 0x00,  0x3E, 0x1C};
+ #endif
+-#if defined(CONFIG_I2S_WM8960) || defined(CONFIG_SND_SOC_WM8960)
++#if defined(CONFIG_I2S_WM8960) || defined(CONFIG_SND_SOC_WM8960) || defined(CONFIG_SND_SOC_ZL380TW)
+ unsigned long i2s_codec_12p288Mhz[11]  = {0x36,  0x24, 0x24, 0x1b,  0x12, 0x12, 0x09,  0x00, 0x00,  0x00, 0x00};
+ unsigned long i2s_codec_12Mhz[11]      = {0x36,  0x24, 0x24, 0x1b,  0x12, 0x12, 0x09,  0x00, 0x00,  0x00, 0x00};
+ #endif
+@@ -245,7 +249,7 @@ int __init i2s_mod_init(void)
+ {
+ 	int result;
+ 
+-	_printk("******* i2s module init **********\n");
++		printk("******* i2s module init **********\n");
+ 	/* register device with kernel */
+ #ifdef  CONFIG_DEVFS_FS
+     	if(devfs_register_chrdev(i2sdrv_major, I2SDRV_DEVNAME , &i2s_fops)) {
+@@ -339,7 +343,7 @@ int i2s_open(struct inode *inode, struct
+ 
+ #if defined(I2S_HW_INTERRUPT_EN)&&(I2S_SW_IRQ_EN)	
+ #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,35)
+-	Ret = request_irq(SURFBOARDINT_I2S, i2s_irq_isr, IRQF_SHARED, "Ralink_I2S", NULL);
++	Ret = request_irq(SURFBOARDINT_I2S, i2s_irq_isr, IRQF_DISABLED, "Ralink_I2S", NULL);
+ #else
+ 	Ret = request_irq(SURFBOARDINT_I2S, i2s_irq_isr, SA_INTERRUPT, "Ralink_I2S", NULL);
+ #endif
+@@ -395,46 +399,47 @@ int i2s_mmap_alloc(unsigned long size)
+ {
+ 	int i;
+ 	u32 page_size;
+-       	int first_index;
++    int first_index;
++	i2s_config_type *prtp = pi2s_config;
+ 
+ 	page_size = I2S_PAGE_SIZE;
+ 
+-	if ((pi2s_config->mmap_index == 0) || (pi2s_config->mmap_index == MAX_I2S_PAGE))
++	if ((prtp->mmap_index == 0) || (prtp->mmap_index == MAX_I2S_PAGE))
+ 	{
+-		MSG("mmap_index=%d\n", pi2s_config->mmap_index);
++		MSG("mmap_index=%d\n", prtp->mmap_index);
+ 
+-		first_index = pi2s_config->mmap_index;
+-	pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index] = kmalloc(size, GFP_DMA);
+-	i2s_mmap_addr[pi2s_config->mmap_index] = (dma_addr_t)dma_map_single(NULL, pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index], size, DMA_BIDIRECTIONAL);
+-	
+-	if( pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index] == NULL ) 
+-	{
+-		MSG("i2s_mmap failed\n");
+-		return -1;
+-	}
++		first_index = prtp->mmap_index;
++		prtp->pMMAPBufPtr[prtp->mmap_index] = kmalloc(size, GFP_DMA);
++		i2s_mmap_addr[prtp->mmap_index] = (dma_addr_t)dma_map_single(NULL, prtp->pMMAPBufPtr[prtp->mmap_index], size, DMA_BIDIRECTIONAL);
++
++		if( prtp->pMMAPBufPtr[prtp->mmap_index] == NULL ) 
++		{
++			MSG("i2s_mmap failed\n");
++			return -1;
++		}
+ 	}
+ 	else
+ 	{
+-		_printk("illegal index:%d\n", pi2s_config->mmap_index);
++		_printk("illegal index:%d\n", prtp->mmap_index);
+ 		return -1;	
+ 	}
+ 	
+ 	_printk("MMAP[%d]=0x%08X, i2s_mmap_addr[%d]=0x%08x\n",
+-		pi2s_config->mmap_index, (u32)pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index], 
+-                pi2s_config->mmap_index, i2s_mmap_addr[pi2s_config->mmap_index]);
++	prtp->mmap_index, (u32)prtp->pMMAPBufPtr[prtp->mmap_index], 
++	prtp->mmap_index, i2s_mmap_addr[prtp->mmap_index]);
+ 	
+-	memset(pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index], 0, size);
+-	pi2s_config->mmap_index++;
++	memset(prtp->pMMAPBufPtr[prtp->mmap_index], 0, size);
++	prtp->mmap_index++;
+ 
+ 	for (i=1; i<MAX_I2S_PAGE; i++)
+ 	{
+-		i2s_mmap_addr[pi2s_config->mmap_index] = i2s_mmap_addr[first_index] + i*page_size;
+-		pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index] = pi2s_config->pMMAPBufPtr[first_index] + i*page_size;
++		i2s_mmap_addr[prtp->mmap_index] = i2s_mmap_addr[first_index] + i*page_size;
++		prtp->pMMAPBufPtr[prtp->mmap_index] = prtp->pMMAPBufPtr[first_index] + i*page_size;
+ 
+-		_printk("MMAP[%d]=0x%08X, i2s_mmap_addr[%d]=0x%08x\n",pi2s_config->mmap_index, (u32)pi2s_config->pMMAPBufPtr[pi2s_config->mmap_index], pi2s_config->mmap_index, i2s_mmap_addr[pi2s_config->mmap_index]);
++		_printk("MMAP[%d]=0x%08X, i2s_mmap_addr[%d]=0x%08x\n",prtp->mmap_index, (u32)prtp->pMMAPBufPtr[prtp->mmap_index], prtp->mmap_index, i2s_mmap_addr[prtp->mmap_index]);
+ 	
+ 		/* Notice: The last mmap_index's value should be MAX_I2S_PAGE or MAX_I2S_PAGE*2 */
+-		pi2s_config->mmap_index++;
++		prtp->mmap_index++;
+ 	}
+ 
+ 	return 0;
+@@ -518,30 +523,31 @@ int i2s_mem_unmap(i2s_config_type* ptri2
+ 
+ int i2s_param_init(i2s_config_type* ptri2s_config)
+ {
+-	ptri2s_config->dmach = GDMA_I2S_TX0;
+-	ptri2s_config->tx_ff_thres = CONFIG_I2S_TFF_THRES;
+-	ptri2s_config->tx_ch_swap = CONFIG_I2S_CH_SWAP;
+-	ptri2s_config->rx_ff_thres = CONFIG_I2S_TFF_THRES;
+-	ptri2s_config->rx_ch_swap = CONFIG_I2S_CH_SWAP;
+-	ptri2s_config->slave_en = CONFIG_I2S_SLAVE_EN; 
++	//printk("-->seven %s %d entry!\n", __func__, __LINE__);
++	ptri2s_config->dmach 		= GDMA_I2S_TX0;
++	ptri2s_config->tx_ff_thres 	= CONFIG_I2S_TFF_THRES;
++	ptri2s_config->tx_ch_swap 	= CONFIG_I2S_CH_SWAP;
++	ptri2s_config->rx_ff_thres 	= CONFIG_I2S_TFF_THRES;
++	ptri2s_config->rx_ch_swap 	= CONFIG_I2S_CH_SWAP;
++	ptri2s_config->slave_en 	= CONFIG_I2S_SLAVE_EN; 
+ 	ptri2s_config->codec_pll_en = CONFIG_I2S_CODEC_PLL_EN;
+ 
+-	ptri2s_config->bRxDMAEnable = 0;
+-	ptri2s_config->bTxDMAEnable = 0;
++	ptri2s_config->bRxDMAEnable = GDMA_I2S_DIS;	//by seven 0
++	ptri2s_config->bTxDMAEnable = GDMA_I2S_DIS; //by seven 0
+ 	//ptri2s_config->bALSAEnable = 0;
+-	ptri2s_config->srate = 44100;
+-	ptri2s_config->txvol = 0;
+-	ptri2s_config->rxvol = 0;
+-	ptri2s_config->lbk = 0;
+-	ptri2s_config->extlbk = 0;
++	ptri2s_config->srate 		= 48000;	//by seven 441000
++	ptri2s_config->txvol 		= 0;
++	ptri2s_config->rxvol 		= 0;
++	ptri2s_config->lbk 			= 0;
++	ptri2s_config->extlbk 		= 0;
+ 	ptri2s_config->txrx_coexist = 0;
+-	ptri2s_config->wordlen_24b = 0;
++	ptri2s_config->wordlen_24b 	= 0;
+ #if defined(CONFIG_RALINK_MT7628) || defined(CONFIG_ARCH_MT7623)
+-	ptri2s_config->sys_endian = 0;
+-	ptri2s_config->fmt = 0;
++	ptri2s_config->sys_endian 	= 0;		//little endian
++	ptri2s_config->fmt 			= 0;
+ #endif
+-	ptri2s_config->micboost = 0;
+-	ptri2s_config->micin = 0;
++	ptri2s_config->micboost 	= 0;
++	ptri2s_config->micin 		= 0;
+ 
+ 	return 0;
+ }
+@@ -550,15 +556,15 @@ int i2s_txbuf_alloc(i2s_config_type* ptr
+ {
+ 	int i;
+ 
+-	for( i = 0 ; i < MAX_I2S_PAGE ; i ++ )
+-        {
++	for( i = 0; i < MAX_I2S_PAGE; i++ )
++    {
+ #if defined(CONFIG_I2S_MMAP)
+-		ptri2s_config->pMMAPTxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i];
++	ptri2s_config->pMMAPTxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i];
+ #else
+-                if(ptri2s_config->pMMAPTxBufPtr[i]==NULL)
+-                	ptri2s_config->pMMAPTxBufPtr[i] = kmalloc(I2S_PAGE_SIZE, GFP_KERNEL);
++	if(ptri2s_config->pMMAPTxBufPtr[i]==NULL)
++		ptri2s_config->pMMAPTxBufPtr[i] = kmalloc(I2S_PAGE_SIZE, GFP_KERNEL);
+ #endif
+-		memset(ptri2s_config->pMMAPTxBufPtr[i], 0, I2S_PAGE_SIZE);
++	memset(ptri2s_config->pMMAPTxBufPtr[i], 0, I2S_PAGE_SIZE);
+ 	}
+ 
+ 	return 0;
+@@ -569,15 +575,15 @@ int i2s_rxbuf_alloc(i2s_config_type* ptr
+ 	int i;
+ 
+ 	for( i = 0 ; i < MAX_I2S_PAGE ; i ++ )
+-        {
++    {
+ #if defined(CONFIG_I2S_MMAP)
+-        	ptri2s_config->pMMAPRxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i+(ptri2s_config->mmap_index-MAX_I2S_PAGE)];
++    	ptri2s_config->pMMAPRxBufPtr[i] = ptri2s_config->pMMAPBufPtr[i+(ptri2s_config->mmap_index-MAX_I2S_PAGE)];
+ #else
+-                if(ptri2s_config->pMMAPRxBufPtr[i]==NULL)
++        if(ptri2s_config->pMMAPRxBufPtr[i]==NULL)
+ 			ptri2s_config->pMMAPRxBufPtr[i] = kmalloc(I2S_PAGE_SIZE, GFP_KERNEL);
+ #endif
+ 		memset(ptri2s_config->pMMAPRxBufPtr[i], 0, I2S_PAGE_SIZE);
+-        }
++    }
+ 
+ 	return 0;
+ }
+@@ -585,26 +591,32 @@ int i2s_rxbuf_alloc(i2s_config_type* ptr
+ int i2s_txPagebuf_alloc(i2s_config_type* ptri2s_config)
+ {
+ #if defined(ARM_ARCH)
++
+ 	ptri2s_config->pPage0TxBuf8ptr = (u8*)pci_alloc_consistent(NULL, I2S_PAGE_SIZE , &i2s_txdma_addr0);
+ 	ptri2s_config->pPage1TxBuf8ptr = (u8*)pci_alloc_consistent(NULL, I2S_PAGE_SIZE , &i2s_txdma_addr1);
++
+ 	if(ptri2s_config->pPage0TxBuf8ptr==NULL)
+-        {
++	{
+ 		MSG("Allocate Tx Page0 Buffer Failed\n");
+-                return -1;
+-        }
++		return -1;
++	}
++	
+ 	if(ptri2s_config->pPage1TxBuf8ptr==NULL)
+-        {
++	{
+ 		MSG("Allocate Tx Page1 Buffer Failed\n");
+-                return -1;
+-        }
+-#else
++		return -1;
++	}
++	
++#else	//For Mt7628/7620 by seven
+ 	ptri2s_config->pPage0TxBuf8ptr = (u8*)pci_alloc_consistent(NULL, I2S_PAGE_SIZE*2 , &i2s_txdma_addr);
+-        if(ptri2s_config->pPage0TxBuf8ptr==NULL)
+-        {
++
++	if(ptri2s_config->pPage0TxBuf8ptr==NULL)
++	{
+ 		MSG("Allocate Tx Page Buffer Failed\n");
+-                return -1;
+-        }
+-        ptri2s_config->pPage1TxBuf8ptr = ptri2s_config->pPage0TxBuf8ptr + I2S_PAGE_SIZE;
++		return -1;
++	}
++	
++	ptri2s_config->pPage1TxBuf8ptr = ptri2s_config->pPage0TxBuf8ptr + I2S_PAGE_SIZE;
+ #endif
+ 	return 0;
+ }
+@@ -645,7 +657,7 @@ int i2s_txbuf_free(i2s_config_type* ptri
+ 		if(ptri2s_config->pMMAPTxBufPtr[i] != NULL)
+ 		{
+ #if defined(CONFIG_I2S_MMAP)
+-                        ptri2s_config->pMMAPTxBufPtr[i] = NULL;
++        	ptri2s_config->pMMAPTxBufPtr[i] = NULL;
+ #else
+ 			kfree(ptri2s_config->pMMAPTxBufPtr[i]);
+ 			ptri2s_config->pMMAPTxBufPtr[i] = NULL;
+@@ -664,7 +676,7 @@ int i2s_rxbuf_free(i2s_config_type* ptri
+ 		if(ptri2s_config->pMMAPRxBufPtr[i] != NULL)
+ 		{
+ #if defined(CONFIG_I2S_MMAP)
+-                        ptri2s_config->pMMAPRxBufPtr[i] = NULL;
++            ptri2s_config->pMMAPRxBufPtr[i] = NULL;
+ #else
+ 			kfree(ptri2s_config->pMMAPRxBufPtr[i]);
+ 			ptri2s_config->pMMAPRxBufPtr[i] = NULL;
+@@ -727,22 +739,22 @@ int i2s_rxPagebuf_free(i2s_config_type*
+ 
+ int i2s_reset_tx_param(i2s_config_type* ptri2s_config)
+ {
+-	ptri2s_config->tx_isr_cnt = 0;
+-	ptri2s_config->tx_w_idx = 0;
+-	ptri2s_config->tx_r_idx = 0;	
+-	ptri2s_config->enLable = 0;
+-	ptri2s_config->tx_pause_en = 0;
+-	ptri2s_config->end_cnt = 0;
+-	ptri2s_config->tx_stop_cnt = 0;
++	ptri2s_config->tx_isr_cnt 	= 0;
++	ptri2s_config->tx_w_idx 	= 0;
++	ptri2s_config->tx_r_idx 	= 0;	
++	ptri2s_config->enLable 		= 0;
++	ptri2s_config->tx_pause_en 	= 0;
++	ptri2s_config->end_cnt 		= 0;
++	ptri2s_config->tx_stop_cnt 	= 0;
+ 
+ #ifdef I2S_STATISTIC
+ 	pi2s_status->txbuffer_unrun = 0;
+ 	pi2s_status->txbuffer_ovrun = 0;
+-	pi2s_status->txdmafault = 0;
+-	pi2s_status->txovrun = 0;
+-	pi2s_status->txunrun = 0;
+-	pi2s_status->txthres = 0;
+-	pi2s_status->txbuffer_len = 0;
++	pi2s_status->txdmafault 	= 0;
++	pi2s_status->txovrun 		= 0;
++	pi2s_status->txunrun 		= 0;
++	pi2s_status->txthres 		= 0;
++	pi2s_status->txbuffer_len 	= 0;
+ #endif
+ 
+ 	return 0;
+@@ -750,21 +762,21 @@ int i2s_reset_tx_param(i2s_config_type*
+ 
+ int i2s_reset_rx_param(i2s_config_type* ptri2s_config)
+ {
+-	ptri2s_config->rx_isr_cnt = 0;
+-	ptri2s_config->rx_w_idx = 0;
+-	ptri2s_config->rx_r_idx = 0;	
+-	ptri2s_config->enLable = 0;
+-	ptri2s_config->rx_pause_en = 0;
+-	ptri2s_config->rx_stop_cnt = 0;
++	ptri2s_config->rx_isr_cnt 	= 0;
++	ptri2s_config->rx_w_idx 	= 0;
++	ptri2s_config->rx_r_idx 	= 0;	
++	ptri2s_config->enLable 		= 0;
++	ptri2s_config->rx_pause_en 	= 0;
++	ptri2s_config->rx_stop_cnt 	= 0;
+ 
+ #ifdef I2S_STATISTIC
+ 	pi2s_status->rxbuffer_unrun = 0;
+ 	pi2s_status->rxbuffer_ovrun = 0;
+-	pi2s_status->rxdmafault = 0;
+-	pi2s_status->rxovrun = 0;
+-	pi2s_status->rxunrun = 0;
+-	pi2s_status->rxthres = 0;
+-	pi2s_status->rxbuffer_len = 0;
++	pi2s_status->rxdmafault 	= 0;
++	pi2s_status->rxovrun 		= 0;
++	pi2s_status->rxunrun 		= 0;
++	pi2s_status->rxthres 		= 0;
++	pi2s_status->rxbuffer_len 	= 0;
+ #endif
+ 
+ 	return 0;
+@@ -1794,7 +1806,7 @@ int i2s_clock_disable(i2s_config_type* p
+ 	return 0;
+ }	
+ 
+-
++/*i2s_cmd func by seven*/
+ int i2s_codec_enable(i2s_config_type* ptri2s_config)
+ {
+ 	
+@@ -2072,13 +2084,37 @@ int i2s_rx_disable(i2s_config_type* ptri
+ 	return I2S_OK;
+ }
+ 
++//periods 4
++static int mtk_pcm_position(i2s_config_type* ptri2s_config, int stream)
++{
++	i2s_config_type* rtd = ptri2s_config;
++	int offset = rtd->tx_r_idx;
++	if(stream == 0){
++	if( rtd->tx_r_idx >= 4)
++		offset=rtd->tx_r_idx-4;
++	}
++	else{
++	offset = rtd->rx_w_idx;
++	if( rtd->rx_w_idx >= 4)
++		offset=rtd->rx_w_idx-4;
++	}
++
++	return offset;
++}
++
+ int i2s_dma_tx_transf_data(i2s_config_type* ptri2s_config, u32 dma_ch)
+ {
+ 	int tx_r_idx;
+- 
+-	if ((pi2s_config->bALSAEnable==1) && (pi2s_config->bALSAMMAPEnable==1))
+-		tx_r_idx = (pi2s_config->tx_r_idx + ALSA_MMAP_IDX_SHIFT)%MAX_I2S_PAGE;
+-	else
++	
++	if ((pi2s_config->bALSAEnable==1) && (pi2s_config->bALSAMMAPEnable==1)){
++		if(ptri2s_config->periods[0] == 4){	//8k
++			tx_r_idx = mtk_pcm_position(ptri2s_config, 0);
++			tx_r_idx = (tx_r_idx + ALSA_MMAP_IDX_SHIFT) % 4;
++		}
++		else
++		//tx_r_idx = pi2s_config->tx_r_idx;
++			tx_r_idx = (pi2s_config->tx_r_idx + ALSA_MMAP_IDX_SHIFT)%MAX_I2S_PAGE;
++	}else
+ 		tx_r_idx = pi2s_config->tx_r_idx;
+ 
+ 	if(dma_ch==GDMA_I2S_TX0)
+@@ -2126,6 +2162,7 @@ int i2s_dma_tx_transf_data(i2s_config_ty
+ 		aecFuncP->AECFeEnq(0,pi2s_config->pMMAPTxBufPtr[pi2s_config->tx_r_idx],I2S_PAGE_SIZE);
+ 	}
+ #endif
++
+ 	return 0;
+ }
+ 
+@@ -2155,13 +2192,22 @@ int i2s_dma_tx_transf_zero(i2s_config_ty
+ int i2s_dma_rx_transf_data(i2s_config_type* ptri2s_config, u32 dma_ch)
+ {
+ 	int rx_w_idx;
++	unsigned long flags;
++//	pi2s_config->rx_w_idx = (pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE;
++	spin_lock_irqsave(&ptri2s_config->lock, flags);
+ 
+-	pi2s_config->rx_w_idx = (pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE;
+-
+-	if ((pi2s_config->bALSAEnable==1) && (pi2s_config->bALSAMMAPEnable==1))
+-		rx_w_idx = (pi2s_config->rx_w_idx+ALSA_MMAP_IDX_SHIFT)%MAX_I2S_PAGE;
+-	else
+-		rx_w_idx = (pi2s_config->rx_w_idx)%MAX_I2S_PAGE;
++	if ((pi2s_config->bALSAEnable==1) && (pi2s_config->bALSAMMAPEnable==1)){
++		if(ptri2s_config->periods[1] == 4){
++			rx_w_idx = mtk_pcm_position(ptri2s_config, 1);
++			rx_w_idx = (rx_w_idx + ALSA_MMAP_IDX_SHIFT)%4;
++		}
++		else
++		//rx_w_idx = pi2s_config->rx_w_idx;
++			rx_w_idx = (pi2s_config->rx_w_idx+ALSA_MMAP_IDX_SHIFT)%MAX_I2S_PAGE;
++	}else
++		rx_w_idx = pi2s_config->rx_w_idx;
++//printk("rx_w_idx:%d\n", rx_w_idx);	
++//	pi2s_config->rx_w_idx = (pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE;
+ 
+ 	if(dma_ch==GDMA_I2S_RX0)
+         {
+@@ -2182,6 +2228,7 @@ int i2s_dma_rx_transf_data(i2s_config_ty
+ #endif
+ #endif
+                 pi2s_config->dmach = GDMA_I2S_RX0;
++	pi2s_config->rx_w_idx = (pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE;
+         }
+ 	else
+         {
+@@ -2202,8 +2249,10 @@ int i2s_dma_rx_transf_data(i2s_config_ty
+ #endif
+ #endif
+                 pi2s_config->dmach = GDMA_I2S_RX1;
++	pi2s_config->rx_w_idx = (pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE;
+ 
+         }
++	spin_unlock_irqrestore(&ptri2s_config->lock, flags);
+ #if defined(CONFIG_I2S_WITH_AEC)
+ 		if(aecFuncP->AECNeEnq){
+ 			aecFuncP->AECNeEnq(0,pi2s_config->pMMAPRxBufPtr[rx_w_idx],I2S_PAGE_SIZE);
+@@ -2273,25 +2322,25 @@ void i2s_dma_tx_handler(u32 dma_ch)
+ 		{
+ 			if(!pi2s_config->bTrigger[STREAM_PLAYBACK]){
+ 				//_printk("trigger stop: rIdx:%d widx:%d\n", pi2s_config->tx_r_idx,pi2s_config->tx_w_idx);
+-                                i2s_dma_tx_transf_zero(pi2s_config, dma_ch);
+-                                if(pi2s_config->bPreTrigger[STREAM_PLAYBACK]){
+-                                        /* mtk04880 commented:
+-                                         * for corner case, there are cases which ALSA Trigger stop before disabling DMA.
+-                                         * For which case, it needs to keep call snd_pcm_elapased to keep ALSA hw ptr updating.
+-                                         * It is so called post stop handlment.
+-                                         */
+-                                        //_printk("post-stop\n");
+-                                        goto EXIT;
+-                                }
+-                                else{
+-                                        //_printk("pre-stop\n");
+-                                        wake_up_interruptible(&(pi2s_config->i2s_tx_qh));
+-                                        return;
+-                                }
+-                        }
+-                        else{
+-                                if(!pi2s_config->bPreTrigger[STREAM_PLAYBACK])
+-                                        pi2s_config->bPreTrigger[STREAM_PLAYBACK] = 1;
++				i2s_dma_tx_transf_zero(pi2s_config, dma_ch);
++				if(pi2s_config->bPreTrigger[STREAM_PLAYBACK]){
++				/* mtk04880 commented:
++				* for corner case, there are cases which ALSA Trigger stop before disabling DMA.
++				* For which case, it needs to keep call snd_pcm_elapased to keep ALSA hw ptr updating.
++				* It is so called post stop handlment.
++				*/
++				//_printk("post-stop\n");
++				goto EXIT;
++				}
++				else{
++					//_printk("pre-stop\n");
++					wake_up_interruptible(&(pi2s_config->i2s_tx_qh));
++					return;
++				}
++			}
++			else{
++				if(!pi2s_config->bPreTrigger[STREAM_PLAYBACK])
++					pi2s_config->bPreTrigger[STREAM_PLAYBACK] = 1;
+ 
+ 			}
+ 		}	
+@@ -2351,7 +2400,8 @@ void i2s_dma_rx_handler(u32 dma_ch)
+ 	{
+ 		pi2s_config->next_p0_idx = 0;
+ 		pi2s_config->next_p1_idx = 1;
+-	}	
++	}
++	
+ 	pi2s_config->rx_isr_cnt++;
+ 	
+ #ifdef  I2S_STATISTIC
+@@ -2372,22 +2422,23 @@ void i2s_dma_rx_handler(u32 dma_ch)
+ 		return;	
+ 	}
+ 
+-	if(pi2s_config->bALSAEnable)
++	if(pi2s_config->bALSAEnable)	//by seven
+ 	{
+-		 if(pi2s_config->dmaStat[STREAM_CAPTURE]){
++		if(pi2s_config->dmaStat[STREAM_CAPTURE]){
+ 			if(!pi2s_config->bTrigger[STREAM_CAPTURE]){
+-                                MSG("trigger stop: rIdx:%d widx:%d\n", pi2s_config->rx_r_idx,pi2s_config->rx_w_idx);
++				MSG("trigger stop: rIdx:%d widx:%d\n", pi2s_config->rx_r_idx,pi2s_config->rx_w_idx);
+ 				i2s_dma_rx_transf_zero(pi2s_config, dma_ch);
+-                                wake_up_interruptible(&(pi2s_config->i2s_rx_qh));
+-                                return;
++				wake_up_interruptible(&(pi2s_config->i2s_rx_qh));
++				return;
+ 			}
+-		 }
++		}
+ 	}
++#if 1
+ 	else
+ 	{
+ 		if(((pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE)==pi2s_config->rx_r_idx){
+ 			/* Buffer Full */
+-			MSG("RXBF r=%d w=%d[i=%u,c=%u]\n",pi2s_config->rx_r_idx,pi2s_config->rx_w_idx,pi2s_config->rx_isr_cnt,dma_ch);
++			printk("RXBF r=%d w=%d[i=%u,c=%u]\n",pi2s_config->rx_r_idx,pi2s_config->rx_w_idx,pi2s_config->rx_isr_cnt,dma_ch);
+ #ifdef I2S_STATISTIC		
+ 			pi2s_status->rxbuffer_unrun++;
+ #endif	
+@@ -2395,7 +2446,7 @@ void i2s_dma_rx_handler(u32 dma_ch)
+ 			goto EXIT;	
+ 		}
+ 	}
+-
++#endif
+ 	if(pi2s_config->rx_pause_en == 1)
+ 	{
+ 		/* Enable PAUSE */
+@@ -2619,7 +2670,9 @@ void i2s_dma_tx_unmask_handler(u32 dma_c
+ {
+ 	MSG("i2s_dma_tx_unmask_handler ch=%d\n",dma_ch);
+ 	pi2s_config->tx_unmask_ch |= (1<<dma_ch);
++#ifdef CONFIG_I2S_MMAP
+ 	tasklet_hi_schedule(&i2s_tx_tasklet);
++#endif
+ 	return;
+ }
+ 
+@@ -2627,7 +2680,9 @@ void i2s_dma_rx_unmask_handler(u32 dma_c
+ {
+ 	MSG("i2s_dma_rx_unmask_handler ch=%d\n",dma_ch);
+ 	pi2s_config->rx_unmask_ch |= (1<<dma_ch);
++#ifdef CONFIG_I2S_MMAP
+ 	tasklet_hi_schedule(&i2s_rx_tasklet);
++#endif
+ 	return;
+ }
+ 
+@@ -2794,7 +2849,7 @@ int i2s_put_audio(i2s_config_type* ptri2
+ 		else
+ 		{
+ 			/* Buffer Full */
+-			//_printk("TBF tr=%d, tw=%d\n", ptri2s_config->tx_r_idx, ptri2s_config->tx_w_idx);
++			printk("TBF tr=%d, tw=%d\n", ptri2s_config->tx_r_idx, ptri2s_config->tx_w_idx);
+ 			pi2s_status->txbuffer_ovrun++;
+ 			spin_unlock_irqrestore(&ptri2s_config->lock, flags);
+ 			interruptible_sleep_on(&(ptri2s_config->i2s_tx_qh));
+@@ -2816,9 +2871,11 @@ int i2s_get_audio(i2s_config_type* ptri2
+ 	int rx_r_idx;
+ 
+ 	do{
++		printk("GA rr=%d, rw=%d,i=%d\n", ptri2s_config->rx_r_idx, ptri2s_config->rx_w_idx,ptri2s_config->rx_isr_cnt);
+ 		spin_lock_irqsave(&ptri2s_config->lock, flags);
+-		//_printk("GA rr=%d, rw=%d,i=%d\n", ptri2s_config->rx_r_idx, ptri2s_config->rx_w_idx,ptri2s_config->rx_isr_cnt);
+-		if(((ptri2s_config->rx_r_idx+2)%MAX_I2S_PAGE)!=ptri2s_config->rx_w_idx)
++		//printk("GA rr=%d, rw=%d,i=%d\n", ptri2s_config->rx_r_idx, ptri2s_config->rx_w_idx,ptri2s_config->rx_isr_cnt);
++		//if(((ptri2s_config->rx_r_idx+2)%MAX_I2S_PAGE)!=ptri2s_config->rx_w_idx)
++		if(ptri2s_config->rx_r_idx != ptri2s_config->rx_w_idx)
+ 		{			
+ 			rx_r_idx = ptri2s_config->rx_r_idx;
+ 			ptri2s_config->rx_r_idx = (ptri2s_config->rx_r_idx+1)%MAX_I2S_PAGE;
+@@ -2828,7 +2885,7 @@ int i2s_get_audio(i2s_config_type* ptri2
+ #else
+ 			copy_to_user((char*)arg, ptri2s_config->pMMAPRxBufPtr[rx_r_idx], I2S_PAGE_SIZE);
+ #endif
+-			//_printk("rx_r_idx=%d\n", ptri2s_config->rx_r_idx);
++			printk("rx_r_idx=%d\n", ptri2s_config->rx_r_idx);
+ 			//ptri2s_config->rx_r_idx = (ptri2s_config->rx_r_idx+1)%MAX_I2S_PAGE;
+ 			pi2s_status->rxbuffer_len--;
+ 			//spin_unlock_irqrestore(&ptri2s_config->lock, flags);
+@@ -2837,7 +2894,7 @@ int i2s_get_audio(i2s_config_type* ptri2
+ 		else
+ 		{
+ 			/* Buffer Full */
+-			//_printk("RBF rr=%d, rw=%d\n", ptri2s_config->rx_r_idx, ptri2s_config->rx_w_idx);
++			printk("====>RBF rr=%d, rw=%d\n", ptri2s_config->rx_r_idx, ptri2s_config->rx_w_idx);
+ 			pi2s_status->rxbuffer_ovrun++;
+ 			spin_unlock_irqrestore(&ptri2s_config->lock, flags);
+ 			interruptible_sleep_on(&(ptri2s_config->i2s_rx_qh));
+@@ -3296,56 +3353,61 @@ int i2s_ioctl (struct inode *inode, stru
+  ************************/
+ char* i2s_memPool_Alloc(i2s_config_type* ptri2s_config,int dir)
+ {
+-        //_printk("%s\n",__func__);
+-        if(!ptri2s_config)
+-                return NULL;
+-        if(dir == STREAM_PLAYBACK){
++	//_printk("%s\n",__func__);
++	if(!ptri2s_config)
++		return NULL;
++	
++	if(dir == STREAM_PLAYBACK){
+ #if defined(CONFIG_I2S_MMAP)
+-                i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
++		i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
+ #endif
+-                i2s_txbuf_alloc(ptri2s_config);
++		i2s_txbuf_alloc(ptri2s_config);
+ 		return ptri2s_config->pMMAPTxBufPtr[0];
+-        }else{
++	}else{
+ #if defined(CONFIG_I2S_MMAP)
+-                i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
++		ptri2s_config->mmap_index = MAX_I2S_PAGE;
++
++		i2s_mmap_alloc(I2S_TOTAL_PAGE_SIZE);
+ #endif
+ 		i2s_rxbuf_alloc(ptri2s_config);	
+ 		return ptri2s_config->pMMAPRxBufPtr[0];
+ 	}
+-        return NULL;
++	
++	return NULL;
+ }
+ 
+ void i2s_memPool_free(i2s_config_type* ptri2s_config,int dir)
+ {
+-        if(!ptri2s_config)
+-                return;
+-        if(dir == STREAM_PLAYBACK){
++    if(!ptri2s_config)
++    	return;
++	
++    if(dir == STREAM_PLAYBACK){
+ #if defined(CONFIG_I2S_MMAP)
+ 		i2s_mem_unmap(ptri2s_config);
+ #endif
+ 		i2s_txbuf_free(ptri2s_config);
+-        }else{
++    }else{
+ #if defined(CONFIG_I2S_MMAP)
+ 		i2s_mem_unmap(ptri2s_config);
+ #endif
+ 		i2s_rxbuf_free(ptri2s_config);
+-        }
++    }
+ 
+-        return;
++    return;
+ }
+ 
+ int i2s_page_prepare(i2s_config_type* ptri2s_config,int dir)
+ {
+-        if(dir == STREAM_PLAYBACK){
+-                /* allocate tx buffer */
+-                i2s_txPagebuf_alloc(ptri2s_config);
++	if(dir == STREAM_PLAYBACK){
++		/* allocate tx buffer */
++		i2s_txPagebuf_alloc(ptri2s_config);
+ 		i2s_dma_tx_init(ptri2s_config);
+-	}else{
+-                /* allocate rx buffer */
++	}else if(dir == STREAM_CAPTURE){
++		/* allocate rx buffer */
+ 		i2s_rxPagebuf_alloc(ptri2s_config);
+ 		i2s_dma_rx_init(ptri2s_config);
+-        }
+-        return 0;
++	}
++	return 0;
+ }
+ 
+ int i2s_page_release(i2s_config_type* ptri2s_config,int dir)
+@@ -3368,7 +3430,7 @@ int i2s_startup(void)
+ 	memset(pi2s_status, 0, sizeof(i2s_status_type));	
+ #endif
+ 
+-	i2s_param_init(pi2s_config);
++	i2s_param_init(pi2s_config);	//by seven mark
+ 	pi2s_config->bALSAEnable = 1;
+ #if defined(CONFIG_I2S_MMAP)
+ 	pi2s_config->bALSAMMAPEnable = 1;
+@@ -3378,23 +3440,26 @@ int i2s_startup(void)
+ 	pi2s_config->little_edn = 1;
+ #endif
+ 
+-    	init_waitqueue_head(&(pi2s_config->i2s_tx_qh));
+-    	init_waitqueue_head(&(pi2s_config->i2s_rx_qh));
++	init_waitqueue_head(&(pi2s_config->i2s_tx_qh));
++	init_waitqueue_head(&(pi2s_config->i2s_rx_qh));
+ 	spin_lock_init(&pi2s_config->lock);
+ 
+ 	return 0;
+ }
+-
++/*to use dma transfer data by seven*/
+ int gdma_En_Switch(i2s_config_type* ptri2s_config,int dir,int enabled){
+-        if(!ptri2s_config)
+-                return (-1);
+-        if(dir == STREAM_PLAYBACK){
+-                ptri2s_config->bTxDMAEnable = enabled;
+-                //MSG("%s:%d\n",__func__,ptri2s_config->bTxDMAEnable);
+-        }else{
+-                ptri2s_config->bRxDMAEnable = enabled;
+-        }
+-        return 0;
++	if(!ptri2s_config)
++		return (-1);
++	
++	if(dir == STREAM_PLAYBACK){
++		ptri2s_config->bTxDMAEnable = enabled;
++	    //MSG("%s:%d\n",__func__,ptri2s_config->bTxDMAEnable);
++	}else if(dir == STREAM_CAPTURE){
++	    ptri2s_config->bRxDMAEnable = enabled;
++	}else
++		printk("no correct resource data!\n");
++
++	return 0;
+ }
+ 
+ int i2s_audio_exchange(i2s_config_type* ptri2s_config,int dir,unsigned long arg)
+@@ -3422,14 +3487,20 @@ void gdma_unmask_handler(u32 dma_ch)
+ 	return;
+ }
+ 
+-u32 i2s_mmap_phys_addr(i2s_config_type* ptri2s_config)
++u32 i2s_mmap_phys_addr(struct snd_pcm_substream *substream, i2s_config_type* ptri2s_config)
+ {
+-	if((ptri2s_config->pMMAPBufPtr[0]!=NULL) && (ptri2s_config->mmap_index == MAX_I2S_PAGE))
++	if(substream->stream == 0)
++		return (dma_addr_t)i2s_mmap_addr[0];
++	else
++		return (dma_addr_t)i2s_mmap_addr[MAX_I2S_PAGE];
++#if 0	
++	if((ptri2s_config->pMMAPBufPtr[0] != NULL) && (ptri2s_config->mmap_index == MAX_I2S_PAGE))
+ 		return (dma_addr_t)i2s_mmap_addr[0];
+-	else if((ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE]!=NULL) && (ptri2s_config->mmap_index == MAX_I2S_PAGE*2))
++	else if((ptri2s_config->pMMAPBufPtr[MAX_I2S_PAGE] != NULL) && (ptri2s_config->mmap_index == MAX_I2S_PAGE*2))
+ 		return (dma_addr_t)i2s_mmap_addr[MAX_I2S_PAGE];
+ 	else
+ 		return -1;
++#endif	
+ }
+ 
+ EXPORT_SYMBOL(i2s_startup);
+@@ -3522,3 +3593,4 @@ MODULE_PARM (i2sdrv_major, "i");
+ #else
+ module_param (i2sdrv_major, int, 0);
+ #endif
++
+--- a/sound/soc/mtk/i2s_ctrl.h
++++ b/sound/soc/mtk/i2s_ctrl.h
+@@ -89,6 +89,9 @@
+ //#define CONFIG_I2S_WS_EDGE		1
+ #define CONFIG_I2S_FRAC_DIV		1
+ #define CONFIG_I2S_IN_CLK		1
++//seven
++#define CONFIG_I2S_IN_MCLK		1
++#define CONFIG_I2S_MS_MODE		1
+ #endif
+ 
+ #if defined(CONFIG_RALINK_RT3350)
+@@ -212,7 +215,7 @@
+ 
+ /* Constant definition */
+ #define NFF_THRES		4
+-#define I2S_PAGE_SIZE		3072//(3*4096)//(1152*2*2*2)
++#define I2S_PAGE_SIZE		4000 	//(3*4096)//(1152*2*2*2)
+ #define I2S_MIN_PAGE_SIZE	4096
+ #define MAX_I2S_PAGE		8
+ #define I2S_TOTAL_PAGE_SIZE 	(I2S_PAGE_SIZE*MAX_I2S_PAGE)
+@@ -348,6 +351,8 @@ typedef struct i2s_config_t
+ 	/* parameters fo ALSA */
+ 	int bALSAEnable;
+ 	int bALSAMMAPEnable;
++	/*0 - playback, 1 - capture by seven*/
++	unsigned int periods[2];		/* periods */
+ 	unsigned char bTrigger[2];
+ 	unsigned char bPreTrigger[2];
+ 	unsigned char dmaStat[2];
+@@ -510,7 +515,7 @@ int i2s_audio_exchange(i2s_config_type*
+ void gdma_unmask_handler(u32 dma_ch);
+ char* i2s_memPool_Alloc(i2s_config_type* ptri2s_config,int dir);
+ void i2s_memPool_free(i2s_config_type* ptri2s_config,int dir);
+-u32 i2s_mmap_phys_addr(i2s_config_type* ptri2s_config);
++u32 i2s_mmap_phys_addr(struct snd_pcm_substream *substream, i2s_config_type* ptri2s_config);
+ 
+ #if !defined(CONFIG_I2S_TXRX)
+ #define GdmaI2sRx	//GdmaI2sRx
+--- a/sound/soc/mtk/mt76xx_i2s.c
++++ b/sound/soc/mtk/mt76xx_i2s.c
+@@ -34,27 +34,30 @@
+ #include "ralink_gdma.h"
+ #include "mt76xx_i2s.h"
+ 
++//#define DEBUG_S
++#ifdef DEBUG_S
++#define MSG_S(fmt, args...) printk("mt76xx_i2s: " fmt, ## args)
++#else
++#define MSG_S(fmt, args...) { }
++#endif
++
+ /****************************/
+ /*GLOBAL VARIABLE DEFINITION*/
+ /****************************/
+-extern i2s_config_type* pi2s_config;
++extern i2s_config_type 	*pi2s_config;		//by default be define in the file: i2s_ctrl.c
+ 
+ /****************************/
+ /*FUNCTION DECLRATION		*/
+ /****************************/
+-static int mt76xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,\
+-		unsigned int fmt);
++static int mt76xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt);
+ 
+ //static int  mt76xx_i2s_shutdown(struct snd_pcm_substream *substream,
+ //		       struct snd_soc_dai *dai);
+-static int  mt76xx_i2s_startup(struct snd_pcm_substream *substream,
+-		       struct snd_soc_dai *dai);
+-static int mt76xx_i2s_hw_params(struct snd_pcm_substream *substream,\
+-				struct snd_pcm_hw_params *params,\
+-				struct snd_soc_dai *dai);
+-static int mt76xx_i2s_play_prepare(struct snd_pcm_substream *substream,struct snd_soc_dai *dai);
+-static int mt76xx_i2s_rec_prepare(struct snd_pcm_substream *substream,struct snd_soc_dai *dai);
+-static int mt76xx_i2s_hw_free(struct snd_pcm_substream *substream,struct snd_soc_dai *dai);
++static int mt76xx_i2s_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai);
++static int mt76xx_i2s_hw_params(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params, struct snd_soc_dai *dai);
++static int mt76xx_i2s_play_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai);
++static int mt76xx_i2s_rec_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai);
++static int mt76xx_i2s_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai);
+ static int mt76xx_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai);
+ 
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,20)
+@@ -108,28 +111,36 @@ struct snd_soc_dai_driver mt76xx_i2s_dai
+ /*FUNCTION BODY				*/
+ /****************************/
+ 
+-static int mt76xx_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
+-		unsigned int fmt)
++static int mt76xx_i2s_set_fmt
++(
++	struct snd_soc_dai *cpu_dai,
++	unsigned int fmt
++)
+ {//TODO
+ 
+-	//printk("******* %s *******\n", __func__);
++	MSG_S("******* %s *******\n", __func__);
+ 	return 0;
+ }
+ 
+-static int mt76xx_i2s_play_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
++static int mt76xx_i2s_play_prepare
++(
++	struct snd_pcm_substream *substream, 
++	struct snd_soc_dai *dai
++)
+ {
+-	//printk("******* %s *******\n", __func__);
+-	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
++	MSG_S("******* %s *******\n", __func__);
++	i2s_config_type		*rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	rtd->pss[SNDRV_PCM_STREAM_PLAYBACK] = substream;
++	
+ 	if(! rtd->i2sStat[SNDRV_PCM_STREAM_PLAYBACK]){
+-		i2s_reset_tx_param( rtd);
+-		i2s_tx_config( rtd);
++		i2s_reset_tx_param(rtd);
++		i2s_tx_config(rtd);
+ 		gdma_En_Switch(rtd, STREAM_PLAYBACK, GDMA_I2S_EN);
+ 
+-		if( rtd->bRxDMAEnable==0)
++		if( rtd->bRxDMAEnable == GDMA_I2S_DIS)
+ 			i2s_clock_enable( rtd);
+ 		
+-		i2s_tx_enable( rtd);
++		i2s_tx_enable(rtd);
+ 		rtd->i2sStat[SNDRV_PCM_STREAM_PLAYBACK] = 1;
+ 		MSG("I2S_TXENABLE done\n");
+ 	}
+@@ -140,55 +151,69 @@ static int mt76xx_i2s_play_prepare(struc
+ static int mt76xx_i2s_rec_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+ {
+ 
+-	//printk("******* %s *******\n", __func__);
+-	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
++	MSG_S("******* %s *******\n", __func__);
++	i2s_config_type		*rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	rtd->pss[SNDRV_PCM_STREAM_CAPTURE] = substream;
++	
+ 	if(! rtd->i2sStat[SNDRV_PCM_STREAM_CAPTURE]) {
+ 		i2s_reset_rx_param(rtd);
+ 		i2s_rx_config(rtd);
+ 		gdma_En_Switch(rtd, STREAM_CAPTURE, GDMA_I2S_EN);
+ 
+-		if(rtd->bTxDMAEnable==0)
++		if(rtd->bTxDMAEnable == GDMA_I2S_DIS)
+ 			i2s_clock_enable(rtd);
+ 
+ 		i2s_rx_enable(rtd);
+ 		rtd->i2sStat[SNDRV_PCM_STREAM_CAPTURE] = 1;
+ 	}
++	
+ 	return 0;
+ }
+ 
+-/*static int  mt76xx_i2s_shutdown(struct snd_pcm_substream *substream,
++#if 0
++static int  mt76xx_i2s_shutdown(struct snd_pcm_substream *substream,
+ 		       struct snd_soc_dai *dai)
+ {
+ 	//i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	//printk("******* %s *******\n", __func__);
+ 	return 0;
+ }
+-*/
+-static int  mt76xx_i2s_startup(struct snd_pcm_substream *substream,
+-		       struct snd_soc_dai *dai)
+-{
++#endif
+ 
+-	//printk("******* %s *******\n", __func__);
+-    	if((!pi2s_config->i2sStat[SNDRV_PCM_STREAM_PLAYBACK]) && (!pi2s_config->i2sStat[SNDRV_PCM_STREAM_CAPTURE])){
++static int  mt76xx_i2s_startup
++(
++	struct snd_pcm_substream *substream,
++	struct snd_soc_dai *dai
++)
++{
++	MSG_S("******* %s *******\n", __func__);
++	if(!pi2s_config)
++		return -1;
++			
++	if((!pi2s_config->i2sStat[SNDRV_PCM_STREAM_PLAYBACK]) && (!pi2s_config->i2sStat[SNDRV_PCM_STREAM_CAPTURE]))
++	{
+ 		i2s_startup();
+-    		if(!pi2s_config)
+-    			return -1;
+-    		i2s_reset_config(pi2s_config);
+-    	}
++		i2s_reset_config(pi2s_config);
++	}
++	
+ 	substream->runtime->private_data = pi2s_config;
++	
+ 	return 0;
+ }
+ 
+-static int mt76xx_i2s_hw_params(struct snd_pcm_substream *substream,\
+-				struct snd_pcm_hw_params *params,\
+-				struct snd_soc_dai *dai){
++static int mt76xx_i2s_hw_params
++(
++	struct snd_pcm_substream 	*substream,
++	struct snd_pcm_hw_params 	*params,
++	struct snd_soc_dai 			*dai
++)
++{
+ 	unsigned int srate = 0;
+ 	//unsigned long data;
+-	struct snd_pcm_runtime *runtime = substream->runtime;
+-	i2s_config_type* rtd = runtime->private_data;
++	struct snd_pcm_runtime 	*runtime 	= substream->runtime;
++	i2s_config_type			*rtd 		= runtime->private_data;
+ 
+-	//printk("******* %s *******\n", __func__);
++	MSG_S("******* %s *******\n", __func__);
+ 	switch(params_rate(params)){
+ 	case 8000:
+ 		srate = 8000;
+@@ -213,7 +238,7 @@ static int mt76xx_i2s_hw_params(struct s
+ 	if(srate){
+ 		if((rtd->bRxDMAEnable != GDMA_I2S_EN) && (rtd->bTxDMAEnable != GDMA_I2S_EN)){
+ 			rtd->srate = srate;
+-			MSG("set audio sampling rate to %d Hz\n", rtd->srate);
++			MSG_S("set audio sampling rate to %d Hz\n", rtd->srate);
+ 		}
+ 	}
+ 
+@@ -221,14 +246,14 @@ static int mt76xx_i2s_hw_params(struct s
+ }
+ static int mt76xx_i2s_hw_free(struct snd_pcm_substream *substream,struct snd_soc_dai *dai){
+ 
+-	//printk("******* %s *******\n", __func__);
+-	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
++	MSG_S("******* %s *******\n", __func__);
++	i2s_config_type		*rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+ 		if(rtd->i2sStat[SNDRV_PCM_STREAM_PLAYBACK]){
+ 			MSG("I2S_TXDISABLE\n");
+ 			i2s_reset_tx_param(rtd);
+ 
+-			if((rtd->bRxDMAEnable==0)&&(rtd->bTxDMAEnable==0)){
++			if( (rtd->bRxDMAEnable == GDMA_I2S_DIS) && (rtd->bTxDMAEnable == GDMA_I2S_DIS) ){
+ 				i2s_clock_disable(rtd);
+ 			}
+ 			rtd->i2sStat[SNDRV_PCM_STREAM_PLAYBACK] = 0;
+@@ -238,19 +263,20 @@ static int mt76xx_i2s_hw_free(struct snd
+ 		if(rtd->i2sStat[SNDRV_PCM_STREAM_CAPTURE]){
+ 			MSG("I2S_RXDISABLE\n");
+ 			i2s_reset_rx_param(rtd);
+-			
+-			if((rtd->bRxDMAEnable==0)&&(rtd->bTxDMAEnable==0)){
++
++			if((rtd->bRxDMAEnable == GDMA_I2S_DIS) && (rtd->bTxDMAEnable == GDMA_I2S_DIS)){
+ 				i2s_clock_disable(rtd);
+ 			}
+ 			rtd->i2sStat[SNDRV_PCM_STREAM_CAPTURE] = 0;
+ 		}
+ 	}
++
+ 	return 0;
+ }
+-static int mt76xx_i2s_prepare(struct snd_pcm_substream *substream,struct snd_soc_dai *dai)
++static int mt76xx_i2s_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+ {
+ 
+-	//printk("******* %s *******\n", __func__);
++	MSG_S("******* %s *******\n", __func__);
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+ 		return mt76xx_i2s_play_prepare(substream, dai);
+ 	else
+@@ -262,7 +288,7 @@ static int mt76xx_i2s_prepare(struct snd
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,20)
+ static int mt76xx_i2s_drv_probe(struct platform_device *pdev)
+ {
+-	//printk("****** %s ******\n", __func__);
++	MSG_S("****** %s ******\n", __func__);
+ 	return snd_soc_register_component(&pdev->dev, &mt76xx_i2s_component,
+ 					&mt76xx_i2s_dai, 1);
+ }
+@@ -285,13 +311,13 @@ static struct platform_driver mt76xx_i2s
+ static int __init mt76xx_i2s_init(void)
+ {
+ 
+-	//printk("****** %s ******\n", __func__);
++	MSG_S("****** %s ******\n", __func__);
+ 	return platform_driver_register(&mt76xx_i2s_driver);
+ }
+ 
+ static void __exit mt76xx_i2s_exit(void)
+ {
+-	//printk("****** %s ******\n", __func__);
++	MSG_S("****** %s ******\n", __func__);
+ 	platform_driver_unregister(&mt76xx_i2s_driver);
+ }
+ 
+@@ -302,3 +328,4 @@ MODULE_AUTHOR("Dora Chen");
+ MODULE_DESCRIPTION("Stretch MT76xx I2S Interface");
+ MODULE_LICENSE("GPL");
+ #endif
++
+--- a/sound/soc/mtk/mt76xx_machine.c
++++ b/sound/soc/mtk/mt76xx_machine.c
+@@ -1,6 +1,6 @@
+ /*
+  * mt76xx_machine.c
+- *
++ * Modifier: by seven
+  */
+ #include <linux/init.h>
+ #include <linux/version.h>
+@@ -43,61 +43,58 @@
+ /****************************/
+ /*FUNCTION DECLRATION		*/
+ /****************************/
+-extern unsigned long i2s_codec_12p288Mhz[11];
+-extern unsigned long i2s_codec_12Mhz[11];
+-
+-
+-static int mt76xx_codec_clock_hwparams(struct snd_pcm_substream *substream,\
+-				struct snd_pcm_hw_params *params);
++static int mt76xx_codec_clock_hwparams(struct snd_pcm_substream *substream, struct snd_pcm_hw_params *params);
+ static int mt76xx_codec_startup(struct snd_pcm_substream *substream);
+ static int mt76xx_codec_init(struct snd_soc_pcm_runtime *rtd);
+-extern struct snd_soc_dai_driver mt76xx_i2s_dai;
+-extern struct snd_soc_platform_driver mt76xx_soc_platform;
+-struct platform_device *mt76xx_audio_device;
+ 
+-#if defined(CONFIG_SND_SOC_WM8960)
+-extern struct snd_soc_dai wm8960_dai;
+-extern struct snd_soc_codec_device soc_codec_dev_wm8960;
+-#endif
++extern unsigned long 					i2s_codec_12p288Mhz[11];
++extern unsigned long 					i2s_codec_12Mhz[11];
++extern struct snd_soc_dai_driver 		mt76xx_i2s_dai;
++extern struct snd_soc_platform_driver 	mt76xx_soc_platform;
++struct platform_device 					*mt76xx_audio_device;
+ 
+ static struct snd_soc_ops mtk_audio_ops = {
+-	.hw_params = mt76xx_codec_clock_hwparams,
+-	.startup = mt76xx_codec_startup,
++	.hw_params 			= mt76xx_codec_clock_hwparams,
++	.startup 			= mt76xx_codec_startup,
+ };
+ 
+ static struct snd_soc_dai_link mtk_audio_dai = {
+-	.name = "mtk_dai",
+-	.stream_name = "WMserious PCM",
+-	.cpu_dai_name	= "mt76xx-i2s",
+-	.codec_dai_name	= "wm8960-hifi",
+-	.codec_name	= "wm8960.0-001a",
+-	.platform_name	= "mt76xx-pcm",
++	.name 				= "mtk_dai",
++	.stream_name 		= "WMserious PCM",
++	.cpu_dai_name		= "mt76xx-i2s",
++	.codec_dai_name		= "zl380tw-hifi",
++	.codec_name			= "zl380tw.0-0045",
++	.platform_name		= "mt76xx-pcm",
+ 	.ignore_pmdown_time = true,
+-	.init = mt76xx_codec_init,
+-	.ops = &mtk_audio_ops,
++	.init 				= mt76xx_codec_init,
++	.ops 				= &mtk_audio_ops,
+ };
+ 
+ static struct snd_soc_card mtk_audio_card = {
+-	.name = "MTK APSoC I2S",
+-	.owner = THIS_MODULE,
+-	.dai_link = &mtk_audio_dai,//I2S/Codec
+-	.num_links = 1,
++	.name 				= "MTK APSoC I2S",
++	.owner 				= THIS_MODULE,
++	.dai_link 			= &mtk_audio_dai,	//I2S/Codec
++	.num_links 			= 1,
+ };
+ 
+-static int mt76xx_codec_clock_hwparams(struct snd_pcm_substream *substream,
+-				struct snd_pcm_hw_params *params)
++static int mt76xx_codec_clock_hwparams
++(
++	struct snd_pcm_substream *substream,
++	struct snd_pcm_hw_params *params
++)
+ {
+-	struct snd_soc_pcm_runtime *p = substream->private_data;
+-	struct snd_soc_dai *codec_dai = p->codec_dai;
+-	struct snd_pcm_runtime *runtime = substream->runtime;
+-	i2s_config_type* rtd = runtime->private_data;
+-	unsigned long data,index = 0;
+-	unsigned long* pTable;
+-	int mclk,ret,targetClk = 0;
++	struct snd_soc_pcm_runtime  *p 			= substream->private_data;
++	struct snd_soc_dai 			*codec_dai 	= p->codec_dai;
++	struct snd_pcm_runtime 		*runtime 	= substream->runtime;
++	i2s_config_type				*rtd 		= runtime->private_data;
++	unsigned long 				data, index = 0;
++	unsigned long				*pTable;
++	int 						mclk, ret, targetClk = 0;
+ 
+ 	/*For duplex mode, avoid setting twice.*/
+ 	if((rtd->bRxDMAEnable == GDMA_I2S_EN) || (rtd->bTxDMAEnable == GDMA_I2S_EN))
+ 		return 0;
++
+ #if defined(CONFIG_I2S_MCLK_12MHZ)
+ 	mclk = 12000000;
+ #elif defined(CONFIG_I2S_MCLK_12P288MHZ)
+@@ -158,41 +155,15 @@ static int mt76xx_codec_clock_hwparams(s
+ 		//MSG("audio sampling rate %u should be %d ~ %d Hz\n", (u32)params_rate(params), MIN_SRATE_HZ, MAX_SRATE_HZ);
+ 		break;
+ 	}
+-#if defined(CONFIG_SND_SOC_WM8960)
+-	/*
+-	 * There is a fixed divide by 4 in the PLL and a selectable
+-	 * divide by N after the PLL which should be set to divide by 2 to meet this requirement.
+-	 * */
+-	ret = snd_soc_dai_set_pll(codec_dai, 0, 0,mclk, targetClk*2);
+-	/* From app notes: allow Vref to stabilize to reduce clicks */
+-	if(rtd->slave_en){
+-		//printk("WM8960 is in master mode\n");
+-		ret = snd_soc_dai_set_clkdiv(codec_dai, WM8960_DCLKDIV, 0x1c4);
+-		ret = snd_soc_dai_set_clkdiv(codec_dai, WM8960_SYSCLKDIV, 0x5);
+-	}
+ 
+-#endif
+ 	if(!rtd->slave_en)
+-		snd_soc_dai_set_fmt(codec_dai,SND_SOC_DAIFMT_CBS_CFS|SND_SOC_DAIFMT_I2S|SND_SOC_DAIFMT_NB_NF);
++		snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS|SND_SOC_DAIFMT_I2S|SND_SOC_DAIFMT_NB_NF);
+ 	else{
+-		snd_soc_dai_set_fmt(codec_dai,SND_SOC_DAIFMT_CBM_CFM|SND_SOC_DAIFMT_I2S|SND_SOC_DAIFMT_NB_NF);
++		snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBM_CFM|SND_SOC_DAIFMT_I2S|SND_SOC_DAIFMT_NB_NF);
+ 	}
++	
+ 	mdelay(5);
+ 
+-#if defined(CONFIG_SND_SOC_WM8960)
+-#if defined(CONFIG_I2S_MCLK_12MHZ)
+-	pTable = i2s_codec_12Mhz;
+-	data = pTable[index];
+-#else
+-	pTable = i2s_codec_12p288Mhz;
+-	data = pTable[index];
+-#endif
+-	if(rtd->codec_pll_en)
+-		ret = snd_soc_dai_set_clkdiv(codec_dai, WM8960_DACDIV, (data<<3)|0x5);
+-	else
+-		ret = snd_soc_dai_set_clkdiv(codec_dai, WM8960_DACDIV, (data<<3|0x4));
+-#endif
+-
+ 	return 0;
+ }
+ 
+@@ -208,44 +179,12 @@ static int mt76xx_codec_init(struct snd_
+ 	return 0;
+ }
+ 
+-static struct i2c_board_info i2c_board_info[] = {
+-	{
+-#if defined(CONFIG_SND_SOC_WM8750)
+-		I2C_BOARD_INFO("wm8750", (0x36 >> 1)),
+-#elif defined(CONFIG_SND_SOC_WM8960)
+-		I2C_BOARD_INFO("codec_wm8960", (0x34)),
+-	}, {
+-		I2C_BOARD_INFO("wm8960", (0x34 >> 1)),
+-#endif
+-	}
+-};
+-
+-static struct platform_device *soc_mtk_i2s_dev;
+-static struct platform_device *soc_mtk_pcm_dev;
++static struct platform_device 	*soc_mtk_i2s_dev;
++static struct platform_device 	*soc_mtk_pcm_dev;
+ 
+ static int __init mt76xx_machine_init(void)
+ {
+-	//struct snd_soc_device *socdev = &mtk_audio_devdata;
+-	//struct i2c_adapter *adapter = NULL;
+-	//struct i2c_client *client = NULL;
+ 	int ret = 0;
+-	struct i2c_adapter *adapter = NULL;
+-        struct i2c_client *client = NULL;
+-
+-	adapter = i2c_get_adapter(I2C_AUDIO_DEV_ID);
+-	if (!adapter)
+-		return -ENODEV;
+-	client = i2c_new_device(adapter, &i2c_board_info[0]);
+-	if (!client)
+-		return -ENODEV;
+-	i2c_get_clientdata(client);
+-
+-	client = i2c_new_device(adapter, &i2c_board_info[1]);
+-	if (!client)
+-		return -ENODEV;
+-	i2c_get_clientdata(client);
+-
+-	i2c_put_adapter(adapter);
+ 
+ 	soc_mtk_i2s_dev =
+ 		platform_device_register_simple("mt76xx-i2s", -1, NULL, 0);
+@@ -256,14 +195,13 @@ static int __init mt76xx_machine_init(vo
+ 		platform_device_register_simple("mt76xx-pcm", -1, NULL, 0);
+ 	if (IS_ERR(soc_mtk_pcm_dev))
+ 		return PTR_ERR(soc_mtk_pcm_dev);
+-
+ 	mt76xx_audio_device = platform_device_alloc("soc-audio",-1);
+ 	if (mt76xx_audio_device == NULL) {
+ 		ret = -ENOMEM;
+ 		goto err_device_alloc;
+ 	}
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38)
+-	platform_set_drvdata(mt76xx_audio_device, &mtk_audio_card);
++	platform_set_drvdata(mt76xx_audio_device, &mtk_audio_card);	/*add a new card by seven*/
+ #else
+ 	platform_set_drvdata(mt76xx_audio_device, &mtk_audio_devdata);
+ 	mtk_audio_devdata.dev = &mt76xx_audio_device->dev;
+--- a/sound/soc/mtk/mt76xx_pcm.c
++++ b/sound/soc/mtk/mt76xx_pcm.c
+@@ -3,6 +3,7 @@
+  *
+  *  Created on: 2013/9/6
+  *      Author: MTK04880
++ *  Modifier: by seven
+  */
+ 
+ #include <linux/init.h>
+@@ -35,12 +36,14 @@
+ #include "ralink_gdma.h"
+ #include "mt76xx_i2s.h"
+ 
+-#define GDMA_PAGE_SIZE 		I2S_PAGE_SIZE
+-#define GDMA_PAGE_NUM 		MAX_I2S_PAGE
++#include "mt76xx_machine.h"
++
++#define GDMA_PAGE_SIZE 			I2S_PAGE_SIZE
++#define GDMA_PAGE_NUM 			MAX_I2S_PAGE
+ #define GDMA_TOTAL_PAGE_SIZE	I2S_TOTAL_PAGE_SIZE
+ 
+-dma_addr_t i2s_txdma_addr, i2s_rxdma_addr;
+-dma_addr_t i2s_mmap_addr[GDMA_PAGE_NUM*2];
++//by seven
++
+ 
+ extern struct tasklet_struct i2s_tx_tasklet;
+ extern struct tasklet_struct i2s_rx_tasklet;
+@@ -72,39 +75,39 @@ static int mt76xx_platform_drv_remove(st
+ 
+ static const struct snd_pcm_hardware mt76xx_pcm_hwparam = {
+ #if defined(CONFIG_I2S_MMAP)
+-	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
+-				SNDRV_PCM_INFO_PAUSE |
+-				SNDRV_PCM_INFO_RESUME |
+-				SNDRV_PCM_INFO_MMAP |
+-				SNDRV_PCM_INFO_MMAP_VALID),
++	.info				= ( SNDRV_PCM_INFO_INTERLEAVED |
++							SNDRV_PCM_INFO_PAUSE |
++							SNDRV_PCM_INFO_RESUME |
++							SNDRV_PCM_INFO_MMAP |
++							SNDRV_PCM_INFO_MMAP_VALID ),
+ #else
+-	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
+-				SNDRV_PCM_INFO_PAUSE |
+-				SNDRV_PCM_INFO_RESUME),
++	.info				= ( SNDRV_PCM_INFO_INTERLEAVED |
++							SNDRV_PCM_INFO_PAUSE |
++							SNDRV_PCM_INFO_RESUME ),
+ #endif
+-	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
++	.formats			= SNDRV_PCM_FMTBIT_S16_LE,
+ 	.period_bytes_min	= GDMA_PAGE_SIZE,
+ 	.period_bytes_max	= GDMA_PAGE_SIZE,
+-	.periods_min		= 1,
+-	.periods_max		= GDMA_PAGE_NUM,
++	.periods_min		= 2,
++	.periods_max		= 128,	//GDMA_PAGE_NUM,
+ 	.buffer_bytes_max	= GDMA_TOTAL_PAGE_SIZE,
+ };
+ 
+ static struct snd_pcm_ops mt76xx_pcm_ops = {
+-
+-	.open = 	mt76xx_pcm_open,
+-	.ioctl = 	snd_pcm_lib_ioctl,
+-	.hw_params = 	mt76xx_pcm_hw_params,
+-	.hw_free = 	mt76xx_pcm_hw_free,
+-	.trigger =	mt76xx_pcm_trigger,
+-	.prepare = 	mt76xx_pcm_prepare,
+-	.pointer = 	mt76xx_pcm_pointer,
+-	.close = 	mt76xx_pcm_close,
++	.open 		= mt76xx_pcm_open,
++	.ioctl 		= snd_pcm_lib_ioctl,
++	.hw_params 	= mt76xx_pcm_hw_params,
++	.hw_free 	= mt76xx_pcm_hw_free,
++	.trigger 	= mt76xx_pcm_trigger,
++	.prepare 	= mt76xx_pcm_prepare,
++	.pointer 	= mt76xx_pcm_pointer,
++	.close 		= mt76xx_pcm_close,
+ #if defined(CONFIG_I2S_MMAP)
+ 	.mmap = mt76xx_pcm_mmap,
+ #endif
+ 	.copy = mt76xx_pcm_copy,
+ };
++
+ #if LINUX_VERSION_CODE > KERNEL_VERSION(3,10,0)
+ struct snd_soc_platform_driver mt76xx_soc_platform = {
+ 	.ops		= &mt76xx_pcm_ops,
+@@ -122,26 +125,68 @@ struct snd_soc_platform mt76xx_soc_platf
+ 
+ static int mt76xx_pcm_close(struct snd_pcm_substream *substream){
+ 
+-	//printk("******* %s *********\n", __func__);
++	//printk("===>seven ******* %s *********\n", __func__);
+ 	return 0;
+ }
++//periods 4
++static int mtk_audio_2205kpcm_position(struct snd_pcm_substream *substream)
++{
++	struct snd_pcm_runtime *runtime = substream->runtime;
++	i2s_config_type* rtd = runtime->private_data;
++	int offset = rtd->tx_r_idx;
++	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
++	if( rtd->tx_r_idx >= 4)
++		offset=rtd->tx_r_idx-4;
++	}
++	else{
++	offset = rtd->rx_w_idx;
++	if( rtd->rx_w_idx >= 4)
++		offset=rtd->rx_w_idx-4;
++
++	}
++	return offset;
++}
+ 
+ static snd_pcm_uframes_t mt76xx_pcm_pointer(struct snd_pcm_substream *substream)
+ {
+ 	struct snd_pcm_runtime *runtime = substream->runtime;
+ 	i2s_config_type* rtd = runtime->private_data;
+ 	unsigned int offset = 0;
++	int dst;
++	unsigned long flags;
+ 	//int buff_frame_bond = bytes_to_frames(runtime, GDMA_PAGE_SIZE);
+ 	//printk("\n******* %s *********\n", __func__);
+-
++		
++//	pi2s_config->rx_w_idx = (pi2s_config->rx_w_idx+1)%MAX_I2S_PAGE;
++	spin_lock_irqsave(&rtd->lock, flags);
++//	printk("######>tx r:%d w: %d, rx_w_idx:%d\n", rtd->tx_r_idx, rtd->tx_w_idx, rtd->rx_w_idx);
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+-		offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*rtd->tx_r_idx);
++#if 1
++		if(runtime->periods == 4){	//8k
++			//offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*(rtd->tx_r_idx%2));
++			dst = mtk_audio_2205kpcm_position(substream);
++			offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*(dst));
++	//	cnt++;
++		}
++		else
++#endif
++			offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*rtd->tx_r_idx);
+ 		//printk("r:%d w:%d (%d) \n",rtd->tx_r_idx,rtd->tx_w_idx,(runtime->control->appl_ptr/buff_frame_bond)%GDMA_PAGE_NUM);
+ 	}
+ 	else{
+-		offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*rtd->rx_w_idx);
++		if(runtime->periods == 4){
++			dst = mtk_audio_2205kpcm_position(substream);
++            offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*(dst));
++		}
++		else
++			offset = bytes_to_frames(runtime, GDMA_PAGE_SIZE*rtd->rx_w_idx);
+ 		//printk("w:%d r:%d appl_ptr:%x\n",rtd->rx_w_idx,rtd->rx_r_idx,(runtime->control->appl_ptr/buff_frame_bond)%GDMA_PAGE_NUM);
+ 	}
++	spin_unlock_irqrestore(&rtd->lock, flags);
++//	printk("--->seven offset:%d, buffer_size:%ld\n", offset, runtime->buffer_size);
++	//if (offset >= runtime->buffer_size)
++		//offset = 0;
++
+ 	return offset;
+ }
+ 
+@@ -150,29 +195,33 @@ static int mt76xx_pcm_trigger(struct snd
+ {
+ 	int ret = 0;
+ 	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
+-	//struct snd_pcm_runtime *runtime= substream->runtime;
++	struct snd_pcm_runtime *runtime= substream->runtime;
+ 
+-	//printk("******* %s *********\n", __func__);
+-/*	printk("trigger cmd:%s\n",(cmd==SNDRV_PCM_TRIGGER_START)?"START":\
++	printk("******* %s *********\n", __func__);
++	printk("trigger cmd:%s\n",(cmd==SNDRV_PCM_TRIGGER_START)?"START":\
+ 			(cmd==SNDRV_PCM_TRIGGER_RESUME)?"RESUME":\
+ 			(cmd==SNDRV_PCM_TRIGGER_PAUSE_RELEASE)?"PAUSE_RELEASE":\
+ 			(cmd==SNDRV_PCM_TRIGGER_STOP)?"STOP":\
+ 			(cmd==SNDRV_PCM_TRIGGER_SUSPEND)?"SUSPEND":\
+ 			(cmd==SNDRV_PCM_TRIGGER_PAUSE_PUSH)?"PAUSE_PUSH":"default");
+-*/
++
+ 	switch (cmd) {
+ 	case SNDRV_PCM_TRIGGER_START:
+ 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+ 			rtd->bTrigger[SNDRV_PCM_STREAM_PLAYBACK] = 1;
++			rtd->periods[SNDRV_PCM_STREAM_PLAYBACK] = runtime->periods;
+ 		} else {
+ 			rtd->bTrigger[SNDRV_PCM_STREAM_CAPTURE] = 1;
++			rtd->periods[SNDRV_PCM_STREAM_CAPTURE] = runtime->periods;
+ 		}
+ 		break;
+ 	case SNDRV_PCM_TRIGGER_STOP:
+ 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+ 			rtd->bTrigger[SNDRV_PCM_STREAM_PLAYBACK] = 0;
++			rtd->periods[SNDRV_PCM_STREAM_PLAYBACK] = 0;
+ 		} else {
+ 			rtd->bTrigger[SNDRV_PCM_STREAM_CAPTURE] = 0;
++			rtd->periods[SNDRV_PCM_STREAM_CAPTURE] = 0;
+ 		}
+ 		break;
+ 	case SNDRV_PCM_TRIGGER_RESUME:
+@@ -207,7 +256,7 @@ static int mt76xx_pcm_copy(struct snd_pc
+ 	int tx_w_idx = 0;
+         int rx_r_idx = 0;
+         char *hwbuf = NULL;
+-
++#if 1
+ 	//printk("******* %s *********\n", __func__);
+ 	hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos);
+ 	//MSG("%s bur:%x\n",__func__,hwbuf);
+@@ -225,6 +274,16 @@ static int mt76xx_pcm_copy(struct snd_pc
+                 rtd->rx_r_idx = (rtd->rx_r_idx+1)%MAX_I2S_PAGE;
+                 copy_to_user((char*)buf, rtd->pMMAPRxBufPtr[rx_r_idx], I2S_PAGE_SIZE);
+ 	}
++#else
++	hwbuf = runtime->dma_area + frames_to_bytes(runtime, pos);
++	//MSG("%s bur:%x\n",__func__,hwbuf);
++	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
++		i2s_audio_exchange(rtd,STREAM_PLAYBACK,(unsigned long)buf);
++	}
++	else{
++		i2s_audio_exchange(rtd,STREAM_CAPTURE,(unsigned long)buf);
++	}
++#endif
+ 	return 0;
+ }
+ 
+@@ -233,8 +292,8 @@ static int mt76xx_pcm_mmap(struct snd_pc
+         int ret;
+         unsigned long size;
+ 
+-        size = vma->vm_end-vma->vm_start;
+-        printk("******* %s: size :%lx end:%lx start:%lx *******\n", __func__,size,vma->vm_end,vma->vm_start);
++        size = vma->vm_end - vma->vm_start;
++        //printk("******* %s: size :%lx end:%lx start:%lx *******\n", __func__, size, vma->vm_end, vma->vm_start);
+         ret = i2s_mmap_remap(vma, size);
+ 
+         return ret;
+@@ -250,21 +309,24 @@ static int mt76xx_pcm_prepare(struct snd
+ 
+ 	//printk("******* %s *******\n", __func__);
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+-		//printk("===== %s:%s:%d =====\n", __FILE__, __func__, __LINE__);
+-		mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_PLAYBACK);
++		//mt76xx_pcm_allocate_dma_buffer(substream, SNDRV_PCM_STREAM_PLAYBACK);
+ 		
+ 		if(! rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK]){
+ 			i2s_page_prepare(rtd,STREAM_PLAYBACK);
++#ifdef CONFIG_I2S_MMAP
+ 			tasklet_init(&i2s_tx_tasklet, i2s_tx_task, (u32)rtd);
++#endif
+ 			rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK] = 1;
+ 			gdma_unmask_handler(GDMA_I2S_TX0);
+ 		}
+ 	} else {
+-		mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_CAPTURE);
++		//mt76xx_pcm_allocate_dma_buffer(substream,SNDRV_PCM_STREAM_CAPTURE);
+ 
+ 		if(! rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE]){
+ 			i2s_page_prepare(rtd,STREAM_CAPTURE); /* TX:enLabel=1; RX:enLabel=2 */
++#ifdef CONFIG_I2S_MMAP
+ 			tasklet_init(&i2s_rx_tasklet, i2s_rx_task, (u32)rtd);
++#endif	//by seven
+ 			rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE] = 1;
+ 			gdma_unmask_handler(GDMA_I2S_RX0);
+ 		}
+@@ -298,13 +360,15 @@ static int mt76xx_pcm_hw_free(struct snd
+ 	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
+ 	//struct snd_dma_buffer *buf = &substream->dma_buffer;
+ 
+-	//printk("******* %s *******\n", __func__);
++	//printk("===>seven******* %s *******\n", __func__);
++	
+ 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+ 		if(rtd->dmaStat[SNDRV_PCM_STREAM_PLAYBACK]){
+-
+-			gdma_En_Switch(rtd,STREAM_PLAYBACK,GDMA_I2S_DIS);
++			gdma_En_Switch(rtd,STREAM_PLAYBACK, GDMA_I2S_DIS);
+ 			i2s_tx_end_sleep_on(rtd);
++#ifdef CONFIG_I2S_MMAP
+ 			tasklet_kill(&i2s_tx_tasklet);
++#endif
+ 			i2s_tx_disable(rtd);
+ 			//mt76xx_pcm_free_dma_buffer(substream,substream->stream);
+ 			i2s_page_release(rtd,STREAM_PLAYBACK);
+@@ -314,10 +378,11 @@ static int mt76xx_pcm_hw_free(struct snd
+ 	}
+ 	else{
+ 		if(rtd->dmaStat[SNDRV_PCM_STREAM_CAPTURE]){
+-
+-			gdma_En_Switch(rtd,STREAM_CAPTURE,GDMA_I2S_DIS);
++			gdma_En_Switch(rtd,STREAM_CAPTURE, GDMA_I2S_DIS);
+ 			i2s_rx_end_sleep_on(rtd);
++#ifdef CONFIG_I2S_MMAP
+ 			tasklet_kill(&i2s_rx_tasklet);
++#endif	//by seven
+ 			i2s_rx_disable(rtd);
+ 			//mt76xx_pcm_free_dma_buffer(substream,substream->stream);
+ 			i2s_page_release(rtd,STREAM_CAPTURE);
+@@ -333,27 +398,33 @@ static int mt76xx_pcm_free_dma_buffer(st
+ {
+ 
+ 	//struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+-	struct snd_dma_buffer *buf = &substream->dma_buffer;
+-	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
++	struct snd_dma_buffer 	*buf = &substream->dma_buffer;
++	i2s_config_type			*rtd = (i2s_config_type*)substream->runtime->private_data;
+ 
+-	//printk("******* %s *******\n", __func__);
++	//printk("===>seven******* %s *******\n", __func__);
+ 	if (!buf->area)
+ 		return 0;
++	
+ 	if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+ 		i2s_memPool_free(rtd,STREAM_PLAYBACK);
+ 	else
+ 		i2s_memPool_free(rtd,STREAM_CAPTURE);
++	
+ 	buf->area = NULL;
+ 	snd_pcm_set_runtime_buffer(substream, NULL);
++	
+ 	return 0;
+ }
+ 
+-static int mt76xx_pcm_allocate_dma_buffer(struct snd_pcm_substream *substream,
+-	int stream)
++static int mt76xx_pcm_allocate_dma_buffer
++(
++	struct snd_pcm_substream *substream,
++	int stream
++)
+ {
+ 	//struct snd_pcm_substream *substream = pcm->streams[stream].substream;
+-	struct snd_dma_buffer *buf = &substream->dma_buffer;
+-	i2s_config_type* rtd = (i2s_config_type*)substream->runtime->private_data;
++	struct snd_dma_buffer 	*buf = &substream->dma_buffer;
++	i2s_config_type			*rtd = (i2s_config_type *)substream->runtime->private_data;
+ 
+ 	//printk("******* %s *******\n", __func__);
+ 	if(!buf->area){
+@@ -366,15 +437,16 @@ static int mt76xx_pcm_allocate_dma_buffe
+ 		buf->dev.dev = NULL;
+ 		buf->private_data = NULL;
+ 		if(stream == SNDRV_PCM_STREAM_PLAYBACK)
+-			buf->area = i2s_memPool_Alloc(rtd,STREAM_PLAYBACK);
++			buf->area = i2s_memPool_Alloc(rtd, STREAM_PLAYBACK);
+ 		else
+-			buf->area = i2s_memPool_Alloc(rtd,STREAM_CAPTURE);
++			buf->area = i2s_memPool_Alloc(rtd, STREAM_CAPTURE);
+ 
+ 		if (!buf->area)
+ 			return -ENOMEM;
++		
+ 		buf->bytes = GDMA_TOTAL_PAGE_SIZE;
+ #if defined(CONFIG_I2S_MMAP)
+-		buf->addr = i2s_mmap_phys_addr(rtd);
++		buf->addr = i2s_mmap_phys_addr(substream, rtd);
+ #endif
+ 		snd_pcm_set_runtime_buffer(substream, buf);
+ 	} else{
+@@ -386,12 +458,12 @@ static int mt76xx_pcm_allocate_dma_buffe
+ 
+ static int mt76xx_pcm_open(struct snd_pcm_substream *substream)
+ {
+-	struct snd_pcm_runtime *runtime= substream->runtime;
+-	struct snd_dma_buffer *buf = &substream->dma_buffer;
++	struct snd_pcm_runtime *runtime	= substream->runtime;
++	struct snd_dma_buffer 	*buf 	= &substream->dma_buffer;
+ 	int stream = substream->stream;
+ 	int ret = 0;
+ 
+-	//printk("******* %s *******\n", __func__);
++	//printk("===>seven******* %s *******\n", __func__);
+ 	snd_soc_set_runtime_hwparams(substream, &mt76xx_pcm_hwparam);
+ 	/* ensure that buffer size is a multiple of period size */
+ 	ret = snd_pcm_hw_constraint_integer(runtime,
+@@ -414,7 +486,7 @@ static int mt76xx_pcm_open(struct snd_pc
+ 		goto out;
+ 
+ 	if(buf)
+-		memset(buf->area,0,sizeof(I2S_PAGE_SIZE*MAX_I2S_PAGE));
++		memset(buf->area, 0, sizeof(I2S_PAGE_SIZE*MAX_I2S_PAGE));
+ 
+  out:
+ 	return ret;
+@@ -426,7 +498,7 @@ static int mt76xx_pcm_new(struct snd_soc
+ {
+ //	int ret = 0;
+ 
+-	//printk("******* %s *******\n", __func__);
++	//printk("===>seven******* %s *******\n", __func__);
+ 	return 0;
+ }
+ 
+@@ -437,7 +509,7 @@ static void mt76xx_pcm_free(struct snd_p
+ 	i2s_config_type* rtd;
+ 	int stream;
+ */
+-	//printk("******* %s *******\n", __func__);
++	//printk("===>seven******* %s *******\n", __func__);
+ 	//return 0;
+ }
+ 
+@@ -468,7 +540,7 @@ static struct platform_driver mt76xx_pcm
+ static int __init mt76xx_pcm_init(void)
+ {
+ 
+-	printk("******* %s *******\n", __func__);
++	//printk("seven******* %s *******\n", __func__);
+ 	return platform_driver_register(&mt76xx_pcm_driver);
+ }
+ 
+@@ -480,13 +552,13 @@ static void __exit mt76xx_pcm_exit(void)
+ static int __init mt76xx_pcm_init(void)
+ {
+ 
+-	printk("******* %s *******\n", __func__);
++	//printk("******* %s *******\n", __func__);
+ 	return snd_soc_register_platform(&mt76xx_soc_platform);
+ }
+ 
+ static void __exit mt76xx_pcm_exit(void)
+ {
+-	printk("******* %s *******\n", __func__);
++	//printk("******* %s *******\n", __func__);
+ 	snd_soc_unregister_platform(&mt76xx_soc_platform);
+ }
+ #endif
