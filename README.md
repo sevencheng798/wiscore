@@ -1,5 +1,5 @@
 # WisCore SDK
-This SDK is for WisCore hardware development platform base on OpenWrt system. Software features include three product features: WisAp, WisAvs(Amazon Alexa Avs function), WisGw(wiscore gateway)
+This SDK is for WisCore hardware development platform base on OpenWrt system. Software features include three product series: WisAp, WisAvs(Amazon Alexa Avs function), WisGw(wiscore gateway)
 
 Compiler introduction:
 
@@ -10,10 +10,34 @@ If you are the first compiler SDK you need to choose to use the product type and
 Before you get started, let's review what you'll need.
 
 1.WisCore development board 
-
 2.Micro-USB power cable
-
 3.Internet connection - Ethernet for download firmware to wiscore board
+
+### Let's get start to compiler wisAp SDK
+The original WisCore SDK on a wiscore board project required manual download and compile to run. To make the process faster and easier, we’ve included an compile install script with the project that will take care of all the heavy lifting. Not only does this reduce setup time to less than an hour on our wiscore board, it only requires developers to adjust three variables in a single install environment script - build/envsetup.sh 
+
+#### Step 1: Clone the wiscore SDK
+Open terminal, and type the following:
+
+cd Desktop
+git clone https://github.com/sevencheng798/wiscore.git
+
+
+#### Step 2: to set compile environment 
+Before you run make, you need to set compile environment with envsetup.sh
+
+cd ~/Desktop/wiscore
+./build/envsetup.sh wisAp hgw
+
+#### Step 3: Run Make to compile
+You are now ready to run make command to compile. This will install all dependencies, including to compile openwrt and related application
+
+Note: Finally compiled generated files firmware in the folder out/target/bin
+
+To run the make, open terminal and navigate to the folder where the project was cloned. Then run the following command:
+cd ~/Desktop/wiscore
+make
+
 
 第一次编译准备
 1、下载sdk
