@@ -18,24 +18,25 @@ The original WisCore SDK on a wiscore board project required manual download and
 #### Step 1: Clone the wiscore SDK
 Open terminal, and type the following:<br>
 
-cd Desktop<br>
-git clone https://github.com/sevencheng798/wiscore.git
+    cd Desktop<br>
+    git clone https://github.com/sevencheng798/wiscore.git
 
 
 #### Step 2: to set compile environment 
 Before you run make, you need to set compile environment for the products you use with envsetup.sh, now we want to use the Amazon Alexa function so we should choose wisAvs products types. 
 
-cd ~/Desktop/wiscore<br>
-./build/envsetup.sh wisAvs hgw
+    cd ~/Desktop/wiscore<br>
+    ./build/envsetup.sh wisAvs hgw
 
 #### Step 3: Run Make to compile
 You are now ready to run make command to compile. This will install all dependencies, including to compile openwrt and related application
 
 Note: Finally compiled generated files firmware in the folder out/target/bin
 
-To run the make, open terminal and navigate to the folder where the project was cloned. Then run the following command:<br>
-cd ~/Desktop/wiscore<br>
-make
+To run the make, open terminal and navigate to the folder where the project was cloned. Then run the following command:
+
+    cd ~/Desktop/wiscore
+    make
 
 #### Step 4: burn the firmware to wiscore board
 
@@ -52,15 +53,15 @@ The original WisCore SDK on a wiscore board project required manual download and
 #### Step 1: Clone the wiscore SDK
 Open terminal, and type the following:<br>
 
-cd Desktop<br>
-git clone https://github.com/sevencheng798/wiscore.git
+    cd Desktop<br>
+    git clone https://github.com/sevencheng798/wiscore.git
 
 
 #### Step 2: to set compile environment 
 Before you run make, you need to set compile environment with envsetup.sh
 
-cd ~/Desktop/wiscore<br>
-./build/envsetup.sh wisAp hgw
+    cd ~/Desktop/wiscore<br>
+    ./build/envsetup.sh wisAp hgw
 
 #### Step 3: Run Make to compile
 You are now ready to run make command to compile. This will install all dependencies, including to compile openwrt and related application
@@ -68,9 +69,10 @@ You are now ready to run make command to compile. This will install all dependen
 Note: Finally compiled generated files firmware in the folder out/target/bin
 
 To run the make, open terminal and navigate to the folder where the project was cloned. Then run the following command:<br>
-cd ~/Desktop/wiscore<br>
-make
+
+    cd ~/Desktop/wiscore<br>
+    make
 
 ## Please refer to the use of more detailed introduction
-https://github.com/sevencheng798/get_started_with_wiscore
+[get_quick_started_with_wiscore](https://github.com/sevencheng798/get_started_with_wiscore)
 
