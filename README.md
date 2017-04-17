@@ -2,13 +2,17 @@
 This SDK is for WisCore hardware development platform base on OpenWrt system. Software features include three product features: WisAp, WisAvs(Amazon Alexa Avs function), WisGw(wiscore gateway)
 
 Compiler introduction:
+
 If you are the first compiler SDK you need to choose to use the product type and then set the compiler environment. so that the next time you recompile the same types of products when there is no need to in the environmental settings unless you want to switch to other types of products
 
-##For compiler WisAp:
+## For compiler WisAp:
 ### Required Hardware
 Before you get started, let's review what you'll need.
+
 1.WisCore development board 
+
 2.Micro-USB power cable
+
 3.Internet connection - Ethernet for download firmware to wiscore board
 
 第一次编译准备
