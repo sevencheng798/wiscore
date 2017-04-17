@@ -1,5 +1,6 @@
 # WisCore SDK
-<div align=center><img width="150" height="150" src="https://github.com/sevencheng798/wiscore/raw/master/img/inf_reg_wiscore.png"/></div>
+<div align=center><img src="https://github.com/sevencheng798/wiscore/raw/master/img/inf_reg_wiscore.png"/></div>
+
 ![](https://github.com/sevencheng798/wiscore/raw/master/img/inf_reg_pic1.png)
 
 This SDK is for WisCore hardware development platform base on OpenWrt system. Software features include three product series: WisAp, WisAvs(Amazon Alexa Avs function), WisGw(wiscore gateway)
