@@ -11,7 +11,7 @@ If you are the first compiler SDK you need to choose to use the product type and
 ## For compiler WisAvs:
 ### Required Hardware
 Before you get started, let's review what you'll need.<br>
-1.WisCore development board<br> 
+1.WisCore development board -  Buy at Rakwireless - [wiscoreBoard](https://item.taobao.com/item.htm?spm=a1z10.5-c.w4002-14938546650.12.IKswLw&id=543868901011)<br> 
 2.wisAudio board<br>
 3.Micro-USB power cable<br>
 4.Internet connection - Ethernet for download firmware to wiscore board<br>
@@ -47,7 +47,7 @@ To run the make, open terminal and navigate to the folder where the project was 
 ## For compiler WisAp:
 ### Required Hardware
 Before you get started, let's review what you'll need.<br>
-1.WisCore development board<br> 
+1.WisCore development board Buy at Rakwireless - [wiscoreBoard](https://item.taobao.com/item.htm?spm=a1z10.5-c.w4002-14938546650.12.IKswLw&id=543868901011)<br> 
 2.Micro-USB power cable<br>
 3.Internet connection - Ethernet for download firmware to wiscore board<br>
 
