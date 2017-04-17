@@ -1,4 +1,8 @@
 # WisCore SDK
+<div align=center><img src="https://github.com/sevencheng798/wiscore/raw/master/img/inf_reg_wiscore.png"/></div>
+
+![](https://github.com/sevencheng798/wiscore/raw/master/img/inf_reg_pic1.png)
+
 This SDK is for WisCore hardware development platform base on OpenWrt system. Software features include three product series: WisAp, WisAvs(Amazon Alexa Avs function), WisGw(wiscore gateway)
 
 Compiler introduction:<br>
@@ -18,14 +22,14 @@ The original WisCore SDK on a wiscore board project required manual download and
 #### Step 1: Clone the wiscore SDK
 Open terminal, and type the following:<br>
 
-    cd Desktop<br>
+    cd Desktop
     git clone https://github.com/sevencheng798/wiscore.git
 
 
 #### Step 2: to set compile environment 
 Before you run make, you need to set compile environment for the products you use with envsetup.sh, now we want to use the Amazon Alexa function so we should choose wisAvs products types. 
 
-    cd ~/Desktop/wiscore<br>
+    cd ~/Desktop/wiscore
     ./build/envsetup.sh wisAvs hgw
 
 #### Step 3: Run Make to compile
@@ -53,14 +57,14 @@ The original WisCore SDK on a wiscore board project required manual download and
 #### Step 1: Clone the wiscore SDK
 Open terminal, and type the following:<br>
 
-    cd Desktop<br>
+    cd Desktop
     git clone https://github.com/sevencheng798/wiscore.git
 
 
 #### Step 2: to set compile environment 
 Before you run make, you need to set compile environment with envsetup.sh
 
-    cd ~/Desktop/wiscore<br>
+    cd ~/Desktop/wiscore
     ./build/envsetup.sh wisAp hgw
 
 #### Step 3: Run Make to compile
@@ -70,7 +74,7 @@ Note: Finally compiled generated files firmware in the folder out/target/bin
 
 To run the make, open terminal and navigate to the folder where the project was cloned. Then run the following command:<br>
 
-    cd ~/Desktop/wiscore<br>
+    cd ~/Desktop/wiscore
     make
 
 ## Please refer to the use of more detailed introduction
