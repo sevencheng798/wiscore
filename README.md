@@ -71,4 +71,6 @@ To run the make, open terminal and navigate to the folder where the project was 
 cd ~/Desktop/wiscore<br>
 make
 
+## Please refer to the use of more detailed introduction
+https://github.com/sevencheng798/get_started_with_wiscore
 
