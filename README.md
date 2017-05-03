@@ -43,7 +43,7 @@ To run the make, open terminal and navigate to the folder where the project was 
     make
 
 #### Step 4: burn the firmware to wiscore board
-
+[burn firmware to WisCore Board](https://github.com/sevencheng798/wiscore/wiki/Burn-Firmware-for-WisCore-Board)<br> 
 ## For compiler WisAp:
 ### Required Hardware
 Before you get started, let's review what you'll need.<br>
@@ -77,6 +77,8 @@ To run the make, open terminal and navigate to the folder where the project was 
     cd ~/Desktop/wiscore
     make
 
+#### Step 4:  burn the firmware to wiscore board
+[burn firmware to WisCore Board](https://github.com/sevencheng798/wiscore/wiki/Burn-Firmware-for-WisCore-Board)<br>
 ## Please refer to the use of more detailed introduction
 [get_quick_started_with_wiscore](https://github.com/sevencheng798/get_started_with_wiscore)
 
