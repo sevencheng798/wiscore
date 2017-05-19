@@ -43,7 +43,7 @@ To run the make, open terminal and navigate to the folder where the project was 
     make
 
 #### Step 4: burn the firmware to wiscore board
-[How to burn firmware to WisCore Board](https://github.com/sevencheng798/wiscore/wiki/Burn-Firmware-for-WisCore-Board)<br> 
+[How to burn firmware to WisCore Board](https://github.com/RAKWireless/wiscore/wiki/Burn-firmware-to-MT762x-Board)<br> 
 ## For compiler WisAp:
 ### Required Hardware
 Before you get started, let's review what you'll need.<br>
